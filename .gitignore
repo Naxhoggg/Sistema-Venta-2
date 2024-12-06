@@ -1,3 +1,4 @@
+# Crea el archivo .gitignore
 echo "# Python
 __pycache__/
 *.py[cod]
@@ -10,3 +11,5 @@ media/
 venv/
 ENV/
 .idea/
+.vscode/
+sistemaVenta/serviceAccountKey.json" > .gitignore
