@@ -1,47 +1,383 @@
 {% extends 'inventario/base.html' %}
 
 {% block content %}
-    <h1>Historial de Ventas</h1>
-    <div class="historial-container">
-        <table class="ventas-table">
-            <thead>
-                <tr>
-                    <th>ID Venta</th>
-                    <th>Fecha</th>
-                    <th>Método de Pago</th>
-                    <th>Monto</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for venta in ventas %}
-                    <tr>
-                        <td>{{ venta.id }}</td>
-                        <td>{{ venta.fechaVenta }}</td>
-                        <td>{{ venta.metodoPago }}</td>
-                        <td>${{ venta.montoPagado }}</td>
-                    </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <h1 class="text-center mb-4">Reportes de Ventas</h1>
+            
+            {% if request.session.rol == 'admin' %}
+            <div class="stats-container mb-4">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="stat-card">
+                            <h4>Ventas Totales</h4>
+                            <p class="h2">${{ total_ventas }}</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card">
+                            <h4>Ventas del Mes</h4>
+                            <p class="h2">${{ ventas_mes }}</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card">
+                            <h4>Productos Vendidos</h4>
+                            <p class="h2">{{ total_productos|default:"0" }}</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card">
+                            <h4>Ganancia Total</h4>
+                            <p class="h2">${{ ganancia_total }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="text-end mb-4">
+                <button class="btn btn-success" onclick="generarReportePDF()">
+                    <i class="fas fa-file-pdf"></i> Generar Reporte PDF
+                </button>
+            </div>
+            {% endif %}
+
+            <div class="historial-container">
+                <div class="table-controls mb-3 d-flex justify-content-between align-items-center">
+                    <div class="entries-per-page">
+                        <label>
+                            Mostrar 
+                            <select class="form-select form-select-sm d-inline-block w-auto" id="entriesPerPage">
+                                <option value="10">10</option>
+                                <option value="25">25</option>
+                                <option value="50">50</option>
+                            </select>
+                            registros
+                        </label>
+                    </div>
+                </div>
+
+                <table class="ventas-table">
+                    <thead>
+                        <tr>
+                            <th>ID Venta</th>
+                            <th>Fecha</th>
+                            <th>Método de Pago</th>
+                            <th>Monto</th>
+                            {% if request.session.rol == 'admin' %}
+                                <th>Vendedor</th>
+                                <th>Ganancia</th>
+                            {% endif %}
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for venta in ventas %}
+                            <tr>
+                                <td>{{ venta.id }}</td>
+                                <td>{{ venta.fechaVenta|date:"d/m/Y H:i" }}</td>
+                                <td>{{ venta.metodoPago }}</td>
+                                <td>${{ venta.montoPagado }}</td>
+                                {% if request.session.rol == 'admin' %}
+                                    <td>{{ venta.idUsuario.nombre }} {{ venta.idUsuario.apellidoPaterno }}</td>
+                                    <td>${{ venta.ganancia|floatformat:0 }}</td>
+                                {% endif %}
+                                <td>
+                                    <button class="btn btn-info btn-sm" onclick="verDetallesVenta({{ venta.id }})">
+                                        <i class="fas fa-eye"></i> Ver Productos
+                                    </button>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+                <div class="pagination-container mt-4 d-flex justify-content-between align-items-center">
+                    <div class="showing-entries">
+                        Mostrando <span id="startEntry">1</span> a <span id="endEntry">10</span> de <span id="totalEntries">{{ ventas|length }}</span> registros
+                    </div>
+                    <nav aria-label="Page navigation">
+                        <ul class="pagination mb-0" id="pagination"></ul>
+                    </nav>
+                </div>
+            </div>
+        </div>
     </div>
-    <style>
-        .historial-container {
-            padding: 20px;
+</div>
+
+<style>
+    .stat-card {
+        background: #fff;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        text-align: center;
+        margin-bottom: 20px;
+    }
+    
+    .historial-container {
+        background: #fff;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .ventas-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .ventas-table th,
+    .ventas-table td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #eee;
+    }
+
+    .ventas-table th {
+        background-color: #f8f9fa;
+        font-weight: 600;
+    }
+
+    .ventas-table tr:hover {
+        background-color: #f8f9fa;
+    }
+
+    @media (max-width: 768px) {
+        .col-lg-10 {
+            padding: 0 15px;
         }
-        .ventas-table {
-            width: 100%;
-            border-collapse: collapse;
+    }
+</style>
+
+    <script>
+    function generarReportePDF() {
+        fetch('{% url "inventario:generar_reporte" %}')
+            .then(response => response.blob())
+            .then(blob => {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'reporte_ventas.pdf';
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error al generar el reporte');
+            });
+    }
+    </script>
+
+<!-- Modal para mostrar detalles de la venta -->
+<div class="modal fade" id="detallesVentaModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-shopping-cart me-2"></i>
+                    Productos de la Venta #<span id="ventaId"></span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="detallesVentaContenido"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>Cerrar
+                </button>
+                <button type="button" class="btn btn-primary" onclick="imprimirDetalles()">
+                    <i class="fas fa-print me-2"></i>Imprimir
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+    <script>
+    function verDetallesVenta(ventaId) {
+        const modal = new bootstrap.Modal(document.getElementById('detallesVentaModal'));
+        document.getElementById('ventaId').textContent = ventaId;
+        
+        // Mostrar loader
+        document.getElementById('detallesVentaContenido').innerHTML = `
+            <div class="text-center py-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Cargando...</span>
+                </div>
+                <p class="mt-2">Cargando detalles...</p>
+            </div>
+        `;
+        
+        modal.show();
+
+        // Usar la URL con nombre
+        fetch(`{% url 'inventario:detalles_venta' 0 %}`.replace('0', ventaId))
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Error al cargar los detalles');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (!data.success) {
+                    throw new Error(data.error || 'Error al cargar los detalles');
+                }
+                
+                if (!data.productos || data.productos.length === 0) {
+                    document.getElementById('detallesVentaContenido').innerHTML = 
+                        '<div class="alert alert-info">No hay productos registrados para esta venta.</div>';
+                    return;
+                }
+
+                let contenido = '<div class="table-responsive">';
+                contenido += '<table class="table table-hover table-striped">';
+                contenido += '<thead class="table-dark"><tr>';
+                contenido += '<th>Código</th>';
+                contenido += '<th>Producto</th>';
+                contenido += '<th class="text-center">Cantidad</th>';
+                contenido += '<th class="text-end">Precio Unit.</th>';
+                contenido += '<th class="text-end">Subtotal</th>';
+                contenido += '</tr></thead><tbody>';
+                
+                let total = 0;
+                data.productos.forEach(prod => {
+                    contenido += `<tr>
+                        <td>${prod.codigo}</td>
+                        <td>${prod.nombre}</td>
+                        <td class="text-center">${prod.cantidad}</td>
+                        <td class="text-end">$${prod.precio.toLocaleString()}</td>
+                        <td class="text-end">$${prod.subtotal.toLocaleString()}</td>
+                    </tr>`;
+                    total += prod.subtotal;
+                });
+                
+                contenido += `<tr class="table-info fw-bold">
+                    <td colspan="4" class="text-end">Total:</td>
+                    <td class="text-end">$${total.toLocaleString()}</td>
+                </tr>`;
+                contenido += '</tbody></table></div>';
+                
+                document.getElementById('detallesVentaContenido').innerHTML = contenido;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('detallesVentaContenido').innerHTML = 
+                    `<div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        ${error.message}
+                    </div>`;
+            });
+    }
+
+    // Función para imprimir los detalles
+    function imprimirDetalles() {
+        const contenido = document.getElementById('detallesVentaContenido').innerHTML;
+        const ventanaImpresion = window.open('', '', 'height=600,width=800');
+        
+        ventanaImpresion.document.write(`
+            <html>
+                <head>
+                    <title>Detalles de Venta #${document.getElementById('ventaId').textContent}</title>
+                    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+                </head>
+                <body>
+                    <div class="container mt-4">
+                        <h4 class="text-center mb-4">Detalles de Venta #${document.getElementById('ventaId').textContent}</h4>
+                        ${contenido}
+                    </div>
+                </body>
+            </html>
+        `);
+        
+        ventanaImpresion.document.close();
+        ventanaImpresion.focus();
+        
+        // Esperar a que los estilos se carguen
+        setTimeout(() => {
+            ventanaImpresion.print();
+            ventanaImpresion.close();
+        }, 1000);
+    }
+    </script>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const table = document.querySelector('.ventas-table tbody');
+        const rows = Array.from(table.querySelectorAll('tr'));
+        let currentPage = 1;
+        let rowsPerPage = 10;
+
+        function displayRows(page) {
+            const start = (page - 1) * rowsPerPage;
+            const end = start + rowsPerPage;
+            
+            rows.forEach((row, index) => {
+                row.style.display = (index >= start && index < end) ? '' : 'none';
+            });
+
+            // Actualizar información de registros mostrados
+            document.getElementById('startEntry').textContent = rows.length ? start + 1 : 0;
+            document.getElementById('endEntry').textContent = Math.min(end, rows.length);
+            document.getElementById('totalEntries').textContent = rows.length;
+
+            updatePagination();
         }
-        .ventas-table th, .ventas-table td {
-            border: 1px solid #ddd;
-            padding: 8px;
-            text-align: left;
+
+        function updatePagination() {
+            const totalPages = Math.ceil(rows.length / rowsPerPage);
+            const pagination = document.getElementById('pagination');
+            let html = '';
+
+            // Botón Anterior
+            html += `<li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+                <a class="page-link" href="#" data-page="prev">Anterior</a>
+            </li>`;
+
+            // Números de página
+            for (let i = 1; i <= totalPages; i++) {
+                html += `<li class="page-item ${currentPage === i ? 'active' : ''}">
+                    <a class="page-link" href="#" data-page="${i}">${i}</a>
+                </li>`;
+            }
+
+            // Botón Siguiente
+            html += `<li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+                <a class="page-link" href="#" data-page="next">Siguiente</a>
+            </li>`;
+
+            pagination.innerHTML = html;
         }
-        .ventas-table th {
-            background-color: #f5f5f5;
-        }
-        .ventas-table tr:nth-child(even) {
-            background-color: #f9f9f9;
-        }
-    </style>
+
+        // Event Listeners
+        document.getElementById('entriesPerPage').addEventListener('change', function() {
+            rowsPerPage = parseInt(this.value);
+            currentPage = 1;
+            displayRows(currentPage);
+        });
+
+        document.getElementById('pagination').addEventListener('click', function(e) {
+            e.preventDefault();
+            if (e.target.tagName === 'A') {
+                const page = e.target.dataset.page;
+                const totalPages = Math.ceil(rows.length / rowsPerPage);
+
+                if (page === 'prev' && currentPage > 1) {
+                    currentPage--;
+                } else if (page === 'next' && currentPage < totalPages) {
+                    currentPage++;
+                } else if (page !== 'prev' && page !== 'next') {
+                    currentPage = parseInt(page);
+                }
+
+                displayRows(currentPage);
+            }
+        });
+
+        // Inicializar
+        displayRows(1);
+    });
+    </script>
 {% endblock %}

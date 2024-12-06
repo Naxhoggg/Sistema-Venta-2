@@ -1,36 +1,235 @@
-{% extends 'inventario/base.html' %}
+{% extends 'inventario/base.html' %} {% block content %}
+<div class="container mt-5">
+  <div class="row justify-content-center">
+    <div class="col-md-8 text-center">
+      {% if request.session.usuario_id %}
+      <h1 class="display-4 mb-4">Bienvenido, {{ request.session.nombre }}</h1>
+      <p class="text-muted">Rol: {{ request.session.rol|title }}</p>
 
-{% block content %}
-    <h1>Sistema de Ventas</h1>
-    <div class="dashboard">
+      <!-- Agregar mensaje de última sesión -->
+      {% if request.session.ultima_sesion %}
+      <p class="text-muted small">
+        Último acceso: {{ request.session.ultima_sesion }}
+      </p>
+      {% endif %}
+
+      <!-- Agregar contador de sesión activa -->
+      <p class="text-muted small" id="tiempoSesion">Tiempo de sesión: 0:00</p>
+      {% else %}
+      <h1 class="display-4 mb-4">Sistema de Ventas</h1>
+      <div class="alert alert-info">
+        Por favor, inicie sesión para acceder al sistema
+      </div>
+      {% endif %}
+
+      <div class="dashboard">
         <div class="quick-actions">
-            <h2>Acciones Rápidas</h2>
-            <div class="action-buttons">
-                <a href="{% url 'inventario:registro_venta' %}" class="btn">Nueva Venta</a>
-                <a href="{% url 'inventario:lista_productos' %}" class="btn">Ver Productos</a>
-            </div>
+          <h2>Acciones Rápidas</h2>
+          <div class="action-buttons">
+            {% if request.session.rol == 'admin' %}
+            <a
+              href="{% url 'inventario:lista_productos' %}"
+              class="btn"
+              id="btnProductos"
+            >
+              <i class="fas fa-box"></i> Gestionar Productos
+            </a>
+            <a
+              href="{% url 'inventario:historial_ventas' %}"
+              class="btn"
+              id="btnReportes"
+            >
+              <i class="fas fa-chart-bar"></i> Ver Reportes
+            </a>
+            <a href="{% url 'admin:index' %}" class="btn" id="btnAdmin">
+              <i class="fas fa-cog"></i> Panel Admin
+            </a>
+            {% endif %} {% if request.session.rol == 'cajero' %}
+            <a
+              href="{% url 'inventario:registro_venta' %}"
+              class="btn"
+              id="btnVenta"
+            >
+              <i class="fas fa-cash-register"></i> Nueva Venta
+            </a>
+            <a
+              href="{% url 'inventario:cierre_caja' %}"
+              class="btn btn-warning"
+              id="btnCierre"
+            >
+              <i class="fas fa-lock"></i> Cierre Caja
+            </a>
+            {% endif %}
+          </div>
         </div>
+      </div>
     </div>
-    <style>
-        .dashboard {
-            padding: 20px;
+  </div>
+</div>
+
+<script>
+  // Validaciones y funcionalidades de sesión
+  document.addEventListener("DOMContentLoaded", function () {
+    // Contador de tiempo de sesión
+    if (document.getElementById("tiempoSesion")) {
+      let segundos = 0;
+      setInterval(() => {
+        segundos++;
+        const minutos = Math.floor(segundos / 60);
+        const segs = segundos % 60;
+        document.getElementById(
+          "tiempoSesion"
+        ).textContent = `Tiempo de sesión: ${minutos}:${segs
+          .toString()
+          .padStart(2, "0")}`;
+      }, 1000);
+    }
+
+    // Validar inactividad
+    let tiempoInactividad = 0;
+    const tiempoMaximoInactividad = 30 * 60; // 30 minutos
+
+    function resetearTiempoInactividad() {
+      tiempoInactividad = 0;
+    }
+
+    setInterval(() => {
+      tiempoInactividad++;
+      if (tiempoInactividad >= tiempoMaximoInactividad) {
+        alert("Su sesión ha expirado por inactividad");
+        window.location.href = '{% url "inventario:logout" %}';
+      }
+    }, 1000);
+
+    // Eventos para resetear el tiempo de inactividad
+    document.addEventListener("mousemove", resetearTiempoInactividad);
+    document.addEventListener("keypress", resetearTiempoInactividad);
+    document.addEventListener("click", resetearTiempoInactividad);
+
+    // Validar accesos rápidos
+    const botones = document.querySelectorAll(".action-buttons .btn");
+    botones.forEach((btn) => {
+      btn.addEventListener("click", function (e) {
+        if (tiempoInactividad >= tiempoMaximoInactividad) {
+          e.preventDefault();
+          alert("Su sesión ha expirado. Por favor, vuelva a iniciar sesión.");
+          window.location.href = '{% url "inventario:logout" %}';
         }
-        .quick-actions {
-            background: #f5f5f5;
-            padding: 20px;
-            border-radius: 8px;
-        }
-        .action-buttons {
-            display: flex;
-            gap: 15px;
-            margin-top: 15px;
-        }
-        .btn {
-            background: #007bff;
-            color: white;
-            padding: 10px 20px;
-            text-decoration: none;
-            border-radius: 5px;
-        }
-    </style>
+      });
+    });
+  });
+</script>
+
+<style>
+  .dashboard {
+    padding: 20px;
+    margin-top: 2rem;
+    transition: all 0.3s ease;
+  }
+  .quick-actions {
+    background: #f5f5f5;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+  .action-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-top: 15px;
+  }
+  .btn {
+    background: #007bff;
+    color: white;
+    padding: 10px 20px;
+    text-decoration: none;
+    border-radius: 5px;
+    transition: transform 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  }
+</style>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const passwordInput = document.getElementById("password");
+    const requirements = document.querySelector(".password-requirements");
+
+    // Mostrar requerimientos al focusear el input
+    passwordInput.addEventListener("focus", () => {
+      requirements.classList.remove("d-none");
+    });
+
+    // Ocultar requerimientos al perder foco si no hay errores
+    passwordInput.addEventListener("blur", () => {
+      if (validarPassword(passwordInput.value)) {
+        requirements.classList.add("d-none");
+      }
+    });
+
+    // Validar contraseña en tiempo real
+    passwordInput.addEventListener("input", function () {
+      const password = this.value;
+
+      // Validar letra minúscula
+      const hasLowercase = /[a-z]/.test(password);
+      toggleRequirement("req-lowercase", hasLowercase);
+
+      // Validar letra mayúscula
+      const hasUppercase = /[A-Z]/.test(password);
+      toggleRequirement("req-uppercase", hasUppercase);
+
+      // Validar número
+      const hasNumber = /\d/.test(password);
+      toggleRequirement("req-number", hasNumber);
+
+      // Validar longitud
+      const hasLength = password.length >= 8;
+      toggleRequirement("req-length", hasLength);
+    });
+
+    function toggleRequirement(reqId, valid) {
+      const requirement = document.getElementById(reqId);
+      const checkIcon = requirement.querySelector(".fa-check");
+      const timesIcon = requirement.querySelector(".fa-times");
+
+      if (valid) {
+        checkIcon.classList.remove("d-none");
+        timesIcon.classList.add("d-none");
+        requirement.classList.add("text-success");
+        requirement.classList.remove("text-danger");
+      } else {
+        checkIcon.classList.add("d-none");
+        timesIcon.classList.remove("d-none");
+        requirement.classList.remove("text-success");
+        requirement.classList.add("text-danger");
+      }
+    }
+
+    function validarPassword(password) {
+      const requirements = {
+        lowercase: /[a-z]/.test(password),
+        uppercase: /[A-Z]/.test(password),
+        number: /\d/.test(password),
+        length: password.length >= 8,
+      };
+      return Object.values(requirements).every((req) => req === true);
+    }
+
+    // Validar formulario antes de enviar
+    const form = document.querySelector("form");
+    form.addEventListener("submit", function (e) {
+      const password = passwordInput.value;
+      if (!validarPassword(password)) {
+        e.preventDefault();
+        alert("La contraseña no cumple con todos los requisitos");
+        requirements.classList.remove("d-none");
+      }
+    });
+  });
+</script>
 {% endblock %}

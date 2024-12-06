@@ -1,0 +1,157 @@
+{% extends 'inventario/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h3 class="card-title text-center mb-4">Registro de Usuario</h3>
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        {{ form|crispy }}
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">Registrarse</button>
+                        </div>
+                        <div class="text-center mt-3">
+                            <a href="{% url 'inventario:login' %}" class="text-decoration-none">¿Ya tienes cuenta? Inicia sesión</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.password-requirements {
+    display: none;
+    margin-top: 0.5rem;
+    padding: 1rem;
+    border-radius: 0.25rem;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+}
+
+.password-requirements.show {
+    display: block;
+}
+
+.requirement-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.25rem;
+}
+
+.requirement-item i {
+    width: 16px;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const passwordInput = document.querySelector('input[name="contraseña"]');
+    const form = document.querySelector('form');
+    
+    // Crear el div de requerimientos
+    const requirementsDiv = document.createElement('div');
+    requirementsDiv.className = 'password-requirements';
+    requirementsDiv.innerHTML = `
+        <h6>La contraseña debería cumplir con los siguientes requerimientos:</h6>
+        <div class="requirement-item" id="req-lowercase">
+            <i class="fas fa-times text-danger"></i>
+            Al menos debería tener una letra
+        </div>
+        <div class="requirement-item" id="req-uppercase">
+            <i class="fas fa-times text-danger"></i>
+            Al menos debería tener una letra en mayúsculas
+        </div>
+        <div class="requirement-item" id="req-number">
+            <i class="fas fa-times text-danger"></i>
+            Al menos debería tener un número
+        </div>
+        <div class="requirement-item" id="req-length">
+            <i class="fas fa-times text-danger"></i>
+            Debería tener 8 caracteres como mínimo
+        </div>
+    `;
+    
+    // Insertar después del input de contraseña
+    passwordInput.parentNode.appendChild(requirementsDiv);
+    
+    // Mostrar requerimientos al focusear
+    passwordInput.addEventListener('focus', () => {
+        requirementsDiv.classList.add('show');
+    });
+    
+    // Validar en tiempo real
+    passwordInput.addEventListener('input', function() {
+        const password = this.value;
+        validateRequirement('req-lowercase', /[a-z]/.test(password));
+        validateRequirement('req-uppercase', /[A-Z]/.test(password));
+        validateRequirement('req-number', /\d/.test(password));
+        validateRequirement('req-length', password.length >= 8);
+    });
+});
+
+function validateRequirement(reqId, valid) {
+    const requirement = document.getElementById(reqId);
+    const icon = requirement.querySelector('i');
+    
+    if (valid) {
+        icon.className = 'fas fa-check text-success';
+        requirement.classList.add('text-success');
+        requirement.classList.remove('text-danger');
+    } else {
+        icon.className = 'fas fa-times text-danger';
+        requirement.classList.remove('text-success');
+        requirement.classList.add('text-danger');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const rutInput = document.querySelector('input[name="rut"]');
+    
+    rutInput.addEventListener('input', function(e) {
+        let rut = this.value;
+        
+        // Eliminar caracteres no permitidos y el guión
+        rut = rut.replace(/[^0-9kK]/g, '');
+        
+        // Formatear RUT solo cuando tenga la longitud correcta (8 o 9 dígitos + dígito verificador)
+        if (rut.length > 1) {
+            const rutSinDv = rut.slice(0, -1);
+            const dv = rut.slice(-1);
+            
+            // Solo agregar guión si el RUT tiene la longitud correcta
+            if (rutSinDv.length >= 7 && rutSinDv.length <= 8) {
+                rut = rutSinDv + '-' + dv;
+            }
+        }
+        
+        this.value = rut.toUpperCase();
+    });
+
+    rutInput.addEventListener('blur', function() {
+        const rutRegex = /^\d{7,8}-[\dK]$/;
+        if (!rutRegex.test(this.value.toUpperCase())) {
+            this.classList.add('is-invalid');
+            let errorDiv = this.parentNode.querySelector('.invalid-feedback');
+            if (!errorDiv) {
+                errorDiv = document.createElement('div');
+                errorDiv.className = 'invalid-feedback';
+                this.parentNode.appendChild(errorDiv);
+            }
+            errorDiv.textContent = 'Formato de RUT inválido. Debe ser XXXXXXXX-X';
+        } else {
+            this.classList.remove('is-invalid');
+            const errorDiv = this.parentNode.querySelector('.invalid-feedback');
+            if (errorDiv) errorDiv.remove();
+        }
+    });
+});
+</script>
+{% endblock %}
+

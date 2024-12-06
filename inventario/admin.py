@@ -16,9 +16,20 @@ class ProductoAdmin(admin.ModelAdmin):
 
 @admin.register(Usuario)
 class UsuarioAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'apellidoPaterno', 'rol', 'fechaCreacion')
+    list_display = ('rut', 'nombre', 'apellidoPaterno', 'rol', 'fechaCreacion')
     list_filter = ('rol',)
-    search_fields = ['nombre', 'rut']
+    search_fields = ['rut', 'nombre']
+    
+    fieldsets = (
+        (None, {'fields': ('rut', 'contraseña')}),
+        ('Información Personal', {'fields': ('nombre', 'apellidoPaterno', 'apellidoMaterno')}),
+        ('Permisos', {'fields': ('rol',)}),
+    )
+
+    def save_model(self, request, obj, form, change):
+        if not change:  # Solo para nuevos usuarios
+            obj.set_password(form.cleaned_data.get('contraseña'))
+        super().save_model(request, obj, form, change)
 
 @admin.register(Venta)
 class VentaAdmin(admin.ModelAdmin):

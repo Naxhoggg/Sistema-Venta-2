@@ -51,13 +51,20 @@
             <h3 class="mb-4 fs-5">Carrito de Compras</h3>
             <div id="items-carrito" style="max-height: 400px; overflow-y: auto;"></div>
             <div class="total mt-4">
-              <div class="d-flex justify-content-between align-items-center border-top pt-4">
-                <h4 class="mb-0 fs-6">Total:</h4>
-                <h4 class="mb-0 fs-6">$<span id="total">0.00</span></h4>
-              </div>
-              <button class="btn btn-primary w-100 mt-4 btn-finalizar">
-                Finalizar Venta
-              </button>
+                <div class="metodo-pago mb-3">
+                    <h4 class="fs-6 mb-2">Método de Pago:</h4>
+                    <select class="form-select" id="metodoPago">
+                        <option value="efectivo">Efectivo</option>
+                        <option value="tarjeta">Tarjeta Débito/Crédito</option>
+                    </select>
+                </div>
+                <div class="d-flex justify-content-between align-items-center border-top pt-4">
+                    <h4 class="mb-0 fs-6">Total:</h4>
+                    <h4 class="mb-0 fs-6">$<span id="total">0.00</span></h4>
+                </div>
+                <button class="btn btn-primary w-100 mt-4 btn-finalizar">
+                    Finalizar Venta
+                </button>
             </div>
           </div>
         </div>
@@ -135,117 +142,123 @@
 
 <!-- Scripts -->
 <script>
+    // Array para almacenar los productos del carrito
     let carrito = [];
 
+    // Función para agregar o actualizar productos en el carrito
     function agregarProducto(id) {
         const productoCard = document.querySelector(`[data-producto-id="${id}"]`);
         const nombre = productoCard.querySelector("h3").textContent;
-        const precio = parseFloat(
-            productoCard
-                .querySelector(".price")
-                .textContent.replace("$", "")
-        );
+        const precio = parseFloat(productoCard.querySelector(".price").textContent.replace("$", ""));
+        const stockActual = parseInt(productoCard.querySelector(".qty").textContent.replace("Stock: ", ""));
         const cantidad = parseInt(productoCard.querySelector('.input-number').value);
 
-        carrito.push({
-            id: id,
-            nombreProducto: nombre,
-            precioVenta: precio,
-            cantidad: cantidad
-        });
+        // Validaciones de cantidad y stock
+        if (cantidad <= 0) {
+            mostrarMensaje('La cantidad debe ser mayor a 0', 'error');
+            return;
+        }
+
+        if (cantidad > stockActual) {
+            mostrarMensaje(`Stock insuficiente. Solo hay ${stockActual} unidades disponibles de ${nombre}`, 'error');
+            return;
+        }
+
+        // Validación de producto existente
+        const productoExistente = carrito.find(item => item.id === id);
+        if (productoExistente) {
+            const nuevaCantidad = productoExistente.cantidad + cantidad;
+            if (nuevaCantidad > stockActual) {
+                mostrarMensaje(`No hay suficiente stock para agregar ${cantidad} unidades más de ${nombre}`, 'error');
+                return;
+            }
+            productoExistente.cantidad = nuevaCantidad;
+        } else {
+            carrito.push({
+                id: id,
+                nombreProducto: nombre,
+                precioVenta: precio,
+                cantidad: cantidad
+            });
+        }
 
         actualizarCarrito();
-        alert('Producto agregado al carrito');
+        mostrarMensaje(`¡${nombre} agregado al carrito exitosamente!`, 'success');
     }
 
+    // Función para actualizar la visualización del carrito
     function actualizarCarrito() {
         const itemsCarrito = document.getElementById("items-carrito");
         const totalSpan = document.getElementById("total");
         let total = 0;
 
+        // Limpiar el contenido actual del carrito
         itemsCarrito.innerHTML = "";
+
+        // Agregar cada producto al carrito
         carrito.forEach((producto, index) => {
+            // Calcular subtotal del producto
+            const subtotal = producto.precioVenta * producto.cantidad;
+            total += subtotal;
+
+            // Crear elemento del producto
             const item = document.createElement("div");
             item.className = "d-flex justify-content-between align-items-center p-2 border-bottom";
             item.innerHTML = `
-                <div class="small">
+                <div class="flex-grow-1">
                     <div class="fw-bold">${producto.nombreProducto}</div>
                     <div class="text-muted">
-                        $${producto.precioVenta} x ${producto.cantidad}
+                        $${producto.precioVenta} x ${producto.cantidad} = $${subtotal.toFixed(2)}
                     </div>
                 </div>
                 <button onclick="eliminarDelCarrito(${index})" 
-                        class="btn btn-link text-danger p-0 ms-2">
-                    <svg width="14" height="14"><use xlink:href="#trash"></use></svg>
+                        class="btn btn-link text-danger p-0 ms-3" 
+                        style="font-size: 1.2rem; text-decoration: none;">
+                    &times;
                 </button>
             `;
             itemsCarrito.appendChild(item);
-            total += producto.precioVenta * producto.cantidad;
         });
 
+        // Actualizar el total
         totalSpan.textContent = total.toFixed(2);
     }
 
+    // Función para eliminar un producto del carrito
     function eliminarDelCarrito(index) {
-        carrito.splice(index, 1);
-        actualizarCarrito();
+        const producto = carrito[index];
+        if (confirm(`¿Deseas eliminar ${producto.nombreProducto} del carrito?`)) {
+            carrito.splice(index, 1);
+            actualizarCarrito();
+            mostrarMensaje('Producto eliminado del carrito');
+        }
     }
 
-    document.querySelector('.btn-finalizar').addEventListener('click', function() {
-        if (carrito.length === 0) {
-            alert('El carrito está vacío');
-            return;
-        }
+    // Función para mostrar mensajes mejorada
+    function mostrarMensaje(mensaje, tipo = 'error') {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${tipo === 'error' ? 'danger' : 'success'} alert-dismissible fade show`;
+        alertDiv.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 1050; min-width: 300px; box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15);';
         
-        fetch('/finalizar-venta/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCookie('csrftoken')
-            },
-            body: JSON.stringify({
-                productos: carrito
-            })
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Error en la respuesta del servidor');
-            }
-            return response.json();
-        })
-        .then(data => {
-            if (data.success) {
-                alert('Venta realizada con éxito');
-                carrito = [];
-                actualizarCarrito();
-                window.location.href = '/historial/';
-            } else {
-                throw new Error(data.error || 'Error al procesar la venta');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Error al procesar la venta: ' + error.message);
-        });
-    });
+        alertDiv.innerHTML = `
+            <div class="d-flex align-items-center">
+                <i class="bi ${tipo === 'error' ? 'bi-exclamation-triangle' : 'bi-check-circle'} me-2 fs-4"></i>
+                <div>
+                    <strong>${tipo === 'error' ? '¡Error!' : '¡Éxito!'}</strong><br>
+                    <span>${mensaje}</span>
+                </div>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
 
-    // Función para obtener el token CSRF
-    function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
-            }
-        }
-        return cookieValue;
+        document.body.appendChild(alertDiv);
+        setTimeout(() => {
+            alertDiv.classList.remove('show');
+            setTimeout(() => alertDiv.remove(), 150);
+        }, 3000);
     }
 
-    // Inicializar los controles de cantidad
+    // Inicializar controles de cantidad
     function initProductQty() {
         document.querySelectorAll('.product-qty').forEach(function(productQty) {
             const plusButton = productQty.querySelector('.quantity-right-plus');
@@ -270,9 +283,122 @@
         });
     }
 
+    // Manejar el evento de finalizar venta
+    document.querySelector('.btn-finalizar').addEventListener('click', function() {
+        if (carrito.length === 0) {
+            mostrarMensaje('El carrito está vacío');
+            return;
+        }
+        
+        const metodoPago = document.getElementById('metodoPago').value;
+        
+        fetch('{% url "inventario:finalizar_venta" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                productos: carrito,
+                metodoPago: metodoPago
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Llenar el modal con los detalles
+                const resumenProductos = document.getElementById('resumenProductos');
+                const resumenTotal = document.getElementById('resumenTotal');
+                const resumenMetodoPago = document.getElementById('resumenMetodoPago');
+                
+                // Mostrar productos
+                resumenProductos.innerHTML = carrito.map(item => `
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>${item.cantidad}x ${item.nombreProducto}</span>
+                        <span>$${(item.precioVenta * item.cantidad).toFixed(2)}</span>
+                    </div>
+                `).join('');
+                
+                // Mostrar total
+                const total = carrito.reduce((sum, item) => sum + (item.precioVenta * item.cantidad), 0);
+                resumenTotal.textContent = `$${total.toFixed(2)}`;
+                
+                // Mostrar método de pago
+                resumenMetodoPago.textContent = metodoPago.charAt(0).toUpperCase() + metodoPago.slice(1);
+                
+                // Mostrar modal
+                const modal = new bootstrap.Modal(document.getElementById('resumenVentaModal'));
+                modal.show();
+                
+                // Limpiar carrito
+                carrito = [];
+                actualizarCarrito();
+            } else {
+                mostrarMensaje(data.error || 'Error al procesar la venta');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            mostrarMensaje('Error al procesar la venta');
+        });
+    });
+
+    // Función para nueva venta
+    function nuevaVenta() {
+        location.reload();
+    }
+
+    // Función para obtener el token CSRF
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
     // Inicializar cuando el documento esté listo
     document.addEventListener('DOMContentLoaded', function() {
         initProductQty();
     });
 </script>
+
+<!-- Primero agregamos el HTML del modal después del section principal -->
+<div class="modal fade" id="resumenVentaModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">¡Venta Realizada con Éxito!</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center mb-4">
+                    <i class="bi bi-check-circle text-success" style="font-size: 3rem;"></i>
+                </div>
+                <div class="resumen-venta">
+                    <h6 class="border-bottom pb-2">Detalle de la Venta:</h6>
+                    <div id="resumenProductos" class="mb-3"></div>
+                    <div class="d-flex justify-content-between fw-bold">
+                        <span>Total:</span>
+                        <span id="resumenTotal"></span>
+                    </div>
+                    <div class="text-muted mt-2">
+                        <small>Método de pago: <span id="resumenMetodoPago"></span></small>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                <button type="button" class="btn btn-primary" onclick="nuevaVenta()">Nueva Venta</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

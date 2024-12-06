@@ -1,59 +1,648 @@
-{% extends 'inventario/base.html' %}
-{% load static %}
+{% extends 'inventario/base.html' %} {% load static %} {% block content %}
 
-{% block content %}
+<div class="container-fluid py-4">
+  <!-- Botón para agregar nuevo producto -->
+  <div class="mb-4">
+    <button
+      type="button"
+      class="btn btn-primary"
+      data-bs-toggle="modal"
+      data-bs-target="#agregarProductoModal"
+    >
+      <i class="fas fa-plus"></i> Agregar Nuevo Producto
+    </button>
+  </div>
 
-
-
-<section class="py-5">
-  <div class="container-fluid">
-    <div class="row">
-      <div class="col-lg-12">
-        <div class="product-grid row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4">
-          {% for producto in productos %}
-          <div class="col">
-            <div class="product-item">
-              <figure>
+  <!-- Tabla de productos -->
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title">Listado de Productos</h3>
+    </div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-hover">
+          <thead>
+            <tr>
+              <th>Imagen</th>
+              <th>Producto</th>
+              <th>Categoría</th>
+              <th>Precio Costo</th>
+              <th>Precio Venta</th>
+              <th>Stock Actual</th>
+              <th>Stock Mínimo</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for producto in productos %}
+            <tr data-producto="{{ producto.id }}">
+              <td>
                 {% if producto.imagen %}
-                <img src="{{ producto.imagen.url }}" alt="{{ producto.nombreProducto }}" class="img-fluid">
+                <img
+                  src="{{ producto.imagen.url }}"
+                  alt="{{ producto.nombreProducto }}"
+                  class="img-thumbnail"
+                  style="max-width: 50px"
+                />
                 {% else %}
-                <img src="{% static 'images/default-product.png' %}" alt="{{ producto.nombreProducto }}" class="img-fluid">
+                <img
+                  src="{% static 'images/default-product.png' %}"
+                  alt="Default"
+                  class="img-thumbnail"
+                  style="max-width: 50px"
+                />
                 {% endif %}
-              </figure>
-              
-              <h3>{{ producto.nombreProducto }}</h3>
-              <span class="qty">{{ producto.idCategoria }}</span>
-              <span class="price">${{ producto.precioVenta }}</span>
-              
-              <div class="d-flex align-items-center justify-content-between">
-                <div class="input-group product-qty">
-                  <span class="input-group-btn">
-                    <button type="button" class="quantity-left-minus btn btn-danger btn-number" data-type="minus">
-                      <svg width="16" height="16"><use xlink:href="#minus"></use></svg>
-                    </button>
-                  </span>
-                  <input type="text" id="quantity" name="quantity" class="form-control input-number" value="1">
-                  <span class="input-group-btn">
-                    <button type="button" class="quantity-right-plus btn btn-success btn-number" data-type="plus">
-                      <svg width="16" height="16"><use xlink:href="#plus"></use></svg>
-                    </button>
-                  </span>
-                </div>
-                <a href="#" class="nav-link">
-                  Agregar al carrito 
-                  <svg width="16" height="16"><use xlink:href="#cart"></use></svg>
-                </a>
-              </div>
-            </div>
-          </div>
-          {% empty %}
-          <div class="col-12">
-            <div class="alert alert-info">No hay productos disponibles</div>
-          </div>
-          {% endfor %}
-        </div>
+              </td>
+              <td>{{ producto.nombreProducto }}</td>
+              <td>{{ producto.idCategoria }}</td>
+              <td>${{ producto.costoProducto }}</td>
+              <td>${{ producto.precioVenta }}</td>
+              <td>
+                <span
+                  class="{% if producto.stockActual <= producto.stockUmbral %}text-danger{% endif %}"
+                >
+                  {{ producto.stockActual }}
+                </span>
+              </td>
+              <td>{{ producto.stockUmbral }}</td>
+              <td>
+                <button
+                  class="btn btn-sm btn-primary"
+                  onclick="editarProducto({{ producto.id }})"
+                >
+                  <i class="fas fa-edit"></i> Editar
+                </button>
+                <button
+                  class="btn btn-sm btn-danger"
+                  onclick="eliminarProducto({{ producto.id }})"
+                >
+                  <i class="fas fa-trash"></i> Eliminar
+                </button>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="8" class="text-center">
+                No hay productos disponibles
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
       </div>
     </div>
   </div>
-</section>
+</div>
+
+<!-- Modal para agregar/editar producto -->
+<div class="modal fade" id="agregarProductoModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Agregar Nuevo Producto</h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <form id="productoForm" enctype="multipart/form-data">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label">Nombre del Producto</label>
+            <input
+              type="text"
+              class="form-control"
+              name="nombreProducto"
+              pattern="[a-zA-Z0-9\s]+"
+              minlength="3"
+              maxlength="50"
+              title="Solo se permiten letras, números y espacios (mínimo 3 caracteres, máximo 50)"
+              required
+            />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Categoría</label>
+            <select
+              class="form-select"
+              name="idCategoria"
+              id="categoriaSelect"
+              onchange="checkNuevaCategoria(this.value)"
+              required
+            >
+              <option value="">Seleccione una categoría</option>
+              {% for categoria in categorias %}
+              <option value="{{ categoria.id }}">
+                {{ categoria.nombreCategoria }}
+              </option>
+              {% endfor %}
+              <option value="nueva">+ Agregar nueva categoría</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Imagen</label>
+            <input
+              type="file"
+              class="form-control"
+              name="imagen"
+              id="imagenProducto"
+              accept="image/*"
+              required
+            />
+            <small class="text-muted"
+              >La imagen es obligatoria para nuevos productos</small
+            >
+          </div>
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Precio Costo</label>
+              <input
+                type="number"
+                class="form-control"
+                name="costoProducto"
+                min="0.01"
+                step="0.01"
+                required
+              />
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Precio Venta</label>
+              <input
+                type="number"
+                class="form-control"
+                name="precioVenta"
+                min="0.01"
+                step="0.01"
+                required
+              />
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Stock Actual</label>
+              <input
+                type="number"
+                class="form-control"
+                name="stockActual"
+                min="0"
+                max="9999"
+                step="1"
+                required
+              />
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Stock Mínimo</label>
+              <input
+                type="number"
+                class="form-control"
+                name="stockUmbral"
+                min="1"
+                step="1"
+                required
+              />
+            </div>
+          </div>
+          <!-- Formulario para nueva categoría -->
+          <div id="nuevaCategoriaForm" class="mb-3" style="display: none">
+            <label class="form-label">Nueva Categoría</label>
+            <div class="input-group">
+              <input
+                type="text"
+                class="form-control"
+                id="nuevaCategoria"
+                placeholder="Nombre de la categoría"
+                pattern="[a-zA-Z0-9\s]+"
+                minlength="3"
+                maxlength="50"
+                title="Solo se permiten letras, números y espacios (mínimo 3 caracteres, máximo 50)"
+              />
+              <button
+                class="btn btn-outline-primary"
+                type="button"
+                onclick="guardarCategoria()"
+              >
+                Guardar
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          Cancelar
+        </button>
+        <button
+          type="button"
+          class="btn btn-primary"
+          onclick="guardarProducto()"
+        >
+          Agregar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function editarProducto(id) {
+    fetch(`/producto/${id}/`)
+      .then((response) => response.json())
+      .then((data) => {
+        // Actualizar título del modal
+        document.querySelector(
+          "#agregarProductoModal .modal-title"
+        ).textContent = "Editar Producto";
+
+        // Llenar el formulario con los datos
+        const form = document.getElementById("productoForm");
+        form.nombreProducto.value = data.nombreProducto;
+        form.idCategoria.value = data.idCategoria;
+        form.costoProducto.value = data.costoProducto;
+        form.precioVenta.value = data.precioVenta;
+        form.stockActual.value = data.stockActual;
+        form.stockUmbral.value = data.stockUmbral;
+
+        // Agregar el ID del producto como campo oculto
+        let idInput = form.querySelector('input[name="producto_id"]');
+        if (!idInput) {
+          idInput = document.createElement("input");
+          idInput.type = "hidden";
+          idInput.name = "producto_id";
+          form.appendChild(idInput);
+        }
+        idInput.value = id;
+
+        // Mostrar el modal
+        const modal = new bootstrap.Modal(
+          document.getElementById("agregarProductoModal")
+        );
+        modal.show();
+      })
+      .catch((error) => {
+        console.error("Error:", error);
+        alert("Error al cargar los datos del producto");
+      });
+  }
+
+  function eliminarProducto(id) {
+    if (confirm("¿Está seguro de eliminar este producto?")) {
+      fetch(`/producto/${id}/eliminar/`, {
+        method: "DELETE",
+        headers: {
+          "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]")
+            .value,
+        },
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.success) {
+            location.reload();
+          }
+        });
+    }
+  }
+
+  function guardarProducto() {
+    if (!validarProducto()) {
+      return;
+    }
+
+    const form = document.getElementById("productoForm");
+    const formData = new FormData(form);
+    const productoId = formData.get("producto_id");
+    const url = productoId
+      ? `/producto/${productoId}/actualizar/`
+      : '{% url "inventario:guardar_producto" %}';
+
+    fetch(url, {
+      method: "POST",
+      headers: {
+        "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]")
+          .value,
+      },
+      body: formData,
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.success) {
+          location.reload();
+        } else {
+          alert("Error: " + (data.errors || data.error || "Error desconocido"));
+        }
+      })
+      .catch((error) => {
+        console.error("Error:", error);
+        alert("Error al guardar el producto");
+      });
+  }
+
+  function checkNuevaCategoria(value) {
+    const nuevaCategoriaForm = document.getElementById("nuevaCategoriaForm");
+    const categoriaSelect = document.getElementById("categoriaSelect");
+    const guardarBtn = document.querySelector(
+      'button[onclick="guardarProducto()"]'
+    );
+
+    nuevaCategoriaForm.style.display = value === "nueva" ? "block" : "none";
+
+    if (value === "nueva") {
+      guardarBtn.disabled = true;
+      categoriaSelect.classList.add("is-invalid");
+    } else if (value === "") {
+      guardarBtn.disabled = true;
+      categoriaSelect.classList.add("is-invalid");
+    } else {
+      guardarBtn.disabled = false;
+      categoriaSelect.classList.remove("is-invalid");
+    }
+  }
+
+  function guardarCategoria() {
+    const nombreCategoria = document.getElementById("nuevaCategoria").value;
+    if (!nombreCategoria) {
+      alert("Por favor ingrese un nombre para la categoría");
+      return;
+    }
+
+    // Validar el nombre de la categoría
+    const regex = /^[a-zA-Z0-9\s]+$/;
+    if (!regex.test(nombreCategoria)) {
+      alert(
+        "El nombre de la categoría solo puede contener letras, números y espacios"
+      );
+      return;
+    }
+
+    if (nombreCategoria.length < 3 || nombreCategoria.length > 50) {
+      alert("El nombre de la categoría debe tener entre 3 y 50 caracteres");
+      return;
+    }
+
+    fetch("/categoria/guardar/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]")
+          .value,
+      },
+      body: JSON.stringify({
+        nombreCategoria: nombreCategoria,
+      }),
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.success) {
+          const select = document.getElementById("categoriaSelect");
+          const option = new Option(nombreCategoria, data.categoria_id);
+          // Insertar antes de la opción "nueva"
+          select.add(option, select.length - 1);
+          select.value = data.categoria_id;
+          document.getElementById("nuevaCategoriaForm").style.display = "none";
+          document.getElementById("nuevaCategoria").value = "";
+          // Habilitar el botón de guardar producto
+          const guardarBtn = document.querySelector(
+            'button[onclick="guardarProducto()"]'
+          );
+          guardarBtn.disabled = false;
+        } else {
+          alert("Error al guardar la categoría: " + data.error);
+        }
+      });
+  }
+
+  function validarProducto() {
+    const form = document.getElementById("productoForm");
+    const nombreProducto = form.nombreProducto.value.trim().toLowerCase();
+    const imagen = form.imagen.files[0];
+    const productoId = form.querySelector('input[name="producto_id"]');
+    const categoriaSelect = document.getElementById("categoriaSelect");
+    const regex = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ0-9\s\-_.,]+$/;
+
+    // Validar categoría
+    if (!categoriaSelect.value || categoriaSelect.value === "nueva") {
+      alert("Debe seleccionar una categoría válida");
+      categoriaSelect.classList.add("is-invalid");
+      return false;
+    }
+
+    // Validar nombre del producto
+    if (!regex.test(nombreProducto)) {
+      alert(
+        "El nombre del producto solo puede contener letras, números, espacios y algunos caracteres especiales"
+      );
+      return false;
+    }
+
+    // Validar imagen solo para productos nuevos
+    if (!productoId && !imagen) {
+      alert("Debe seleccionar una imagen para el nuevo producto");
+      return false;
+    }
+
+    const costo = parseFloat(form.costoProducto.value);
+    const precio = parseFloat(form.precioVenta.value);
+    const stockActual = parseInt(form.stockActual.value);
+    const stockUmbral = parseInt(form.stockUmbral.value);
+
+    // Validar precios
+    if (precio <= costo) {
+      alert("El precio de venta debe ser mayor al costo");
+      return false;
+    }
+
+    // Validar margen de ganancia
+    const margen = ((precio - costo) / costo) * 100;
+    if (margen < 10) {
+      alert("El margen de ganancia debe ser al menos del 10%");
+      return false;
+    }
+
+    // Validar stock
+    if (stockUmbral > stockActual) {
+      alert("El stock mínimo no puede ser mayor al stock actual");
+      return false;
+    }
+
+    // Validar tipo de archivo si se seleccionó una imagen
+    if (imagen) {
+      const allowedTypes = [
+        "image/jpeg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+      ];
+      if (!allowedTypes.includes(imagen.type)) {
+        alert("El archivo debe ser una imagen (JPEG, PNG, GIF o WEBP)");
+        return false;
+      }
+
+      // Validar tamaño de la imagen (máximo 5MB)
+      const maxSize = 5 * 1024 * 1024; // 5MB en bytes
+      if (imagen.size > maxSize) {
+        alert("La imagen no puede superar los 5MB");
+        return false;
+      }
+    }
+
+    // Nuevas validaciones:
+
+    // 1. Validar que el nombre no esté duplicado
+    const nombreExistente = document.querySelector(
+      `td[data-nombre="${nombreProducto}"]`
+    );
+    if (!productoId && nombreExistente) {
+      alert("Ya existe un producto con este nombre");
+      return false;
+    }
+
+    // 2. Validar precios máximos razonables
+    const precioMaximo = 1000000; // Un millón
+    if (precio > precioMaximo || costo > precioMaximo) {
+      alert("Los precios no pueden superar $1,000,000");
+      return false;
+    }
+
+    // 3. Validar margen de ganancia máximo
+    const margenMaximo = 500; // 500%
+    if (margen > margenMaximo) {
+      alert("El margen de ganancia no puede superar el 500%");
+      return false;
+    }
+
+    // 4. Validar stock máximo razonable
+    const stockMaximo = 10000;
+    if (stockActual > stockMaximo) {
+      alert("El stock no puede superar las 10,000 unidades");
+      return false;
+    }
+
+    // 5. Validar diferencia mínima entre stock actual y umbral
+    const diferenciaMinimaStock = Math.ceil(stockActual * 0.1); // 10% del stock actual
+    if (stockActual - stockUmbral < diferenciaMinimaStock) {
+      alert("El stock mínimo debe ser al menos 10% menor que el stock actual");
+      return false;
+    }
+
+    // 6. Validar que los precios tengan máximo 2 decimales
+    if (!Number.isInteger(costo * 100) || !Number.isInteger(precio * 100)) {
+      alert("Los precios no pueden tener más de 2 decimales");
+      return false;
+    }
+
+    // 7. Validar que los números no sean demasiado pequeños
+    const precioMinimo = 0.01;
+    if (costo < precioMinimo || precio < precioMinimo) {
+      alert("Los precios no pueden ser menores a $0.01");
+      return false;
+    }
+
+    // 8. Validar proporción de precios
+    const proporcionMaxima = 10; // El precio no puede ser más de 10 veces el costo
+    if (precio / costo > proporcionMaxima) {
+      alert("El precio de venta no puede ser más de 10 veces el costo");
+      return false;
+    }
+
+    // Validar nombre duplicado
+    const productosExistentes = Array.from(document.querySelectorAll('tr[data-producto]')).map(tr => 
+        tr.querySelector('td:nth-child(2)').textContent.trim().toLowerCase()
+    );
+    
+    if (!productoId && productosExistentes.includes(nombreProducto)) {
+        alert("Ya existe un producto con este nombre");
+        form.nombreProducto.classList.add('is-invalid');
+        return false;
+    }
+
+    return true;
+  }
+
+  // Función para validar en tiempo real
+  function validarEnTiempoReal() {
+    const form = document.getElementById("productoForm");
+    const nombreInput = form.nombreProducto;
+    const costoInput = form.costoProducto;
+    const precioInput = form.precioVenta;
+    const stockActualInput = form.stockActual;
+    const stockUmbralInput = form.stockUmbral;
+    const categoriaSelect = document.getElementById("categoriaSelect");
+    const guardarBtn = document.querySelector(
+      'button[onclick="guardarProducto()"]'
+    );
+
+    // Validar categoría en tiempo real
+    categoriaSelect.addEventListener("change", function () {
+      if (!this.value || this.value === "") {
+        this.classList.add("is-invalid");
+        guardarBtn.disabled = true;
+      } else {
+        this.classList.remove("is-invalid");
+        // Solo habilitar si no es "nueva categoría"
+        guardarBtn.disabled = this.value === "nueva";
+      }
+    });
+
+    // Validar nombre en tiempo real
+    nombreInput.addEventListener("input", function() {
+        const nombre = this.value.trim().toLowerCase();
+        const regex = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ0-9\s\-_.,]+$/;
+        const productoId = form.querySelector('input[name="producto_id"]')?.value;
+        
+        // Verificar caracteres válidos
+        if (!regex.test(this.value)) {
+            this.classList.add("is-invalid");
+            this.nextElementSibling.textContent = "El nombre contiene caracteres no permitidos";
+            guardarBtn.disabled = true;
+            return;
+        }
+
+        // Verificar duplicados
+        const productosExistentes = Array.from(document.querySelectorAll('tr[data-producto]')).map(tr => 
+            tr.querySelector('td:nth-child(2)').textContent.trim().toLowerCase()
+        );
+        
+        if (!productoId && productosExistentes.includes(nombre)) {
+            this.classList.add("is-invalid");
+            this.nextElementSibling.textContent = "Ya existe un producto con este nombre";
+            guardarBtn.disabled = true;
+        } else {
+            this.classList.remove("is-invalid");
+            guardarBtn.disabled = false;
+        }
+    });
+
+    // Validar precios en tiempo real
+    [costoInput, precioInput].forEach((input) => {
+      input.addEventListener("input", function () {
+        const valor = parseFloat(this.value);
+        if (isNaN(valor) || valor <= 0 || valor > 1000000) {
+          this.classList.add("is-invalid");
+          guardarBtn.disabled = true;
+        } else {
+          this.classList.remove("is-invalid");
+          guardarBtn.disabled = false;
+        }
+      });
+    });
+
+    // Validar stock en tiempo real
+    [stockActualInput, stockUmbralInput].forEach((input) => {
+      input.addEventListener("input", function () {
+        const valor = parseInt(this.value);
+        if (isNaN(valor) || valor < 0 || valor > 10000) {
+          this.classList.add("is-invalid");
+          guardarBtn.disabled = true;
+        } else {
+          this.classList.remove("is-invalid");
+          guardarBtn.disabled = false;
+        }
+      });
+    });
+  }
+
+  // Inicializar validaciones en tiempo real
+  document.addEventListener("DOMContentLoaded", validarEnTiempoReal);
+</script>
+
 {% endblock %}
