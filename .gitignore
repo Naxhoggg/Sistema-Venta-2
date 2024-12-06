@@ -1,5 +1,4 @@
-# Crea el archivo .gitignore
-echo "# Python
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
@@ -12,4 +11,4 @@ venv/
 ENV/
 .idea/
 .vscode/
-sistemaVenta/serviceAccountKey.json" > .gitignore
+sistemaVenta/serviceAccountKey.json
