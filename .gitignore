@@ -1,0 +1,12 @@
+echo "# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+db.sqlite3
+media/
+.env
+venv/
+ENV/
+.idea/

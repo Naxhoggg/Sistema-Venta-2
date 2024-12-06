@@ -1,0 +1,198 @@
+{% extends 'inventario/base.html' %}
+{% load static %}
+{% block content %}
+<div class="container">
+    <h2>Gestión de Inventario</h2>
+    
+    {% if messages %}
+    <div class="messages mb-3">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    
+    <!-- Botón Nuevo Producto -->
+    <div class="mb-3">
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#nuevoProductoModal">
+            Nuevo Producto
+        </button>
+    </div>
+
+    <!-- Modal para Nuevo Producto -->
+    <div class="modal fade" id="nuevoProductoModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Nuevo Producto</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="nuevoProductoForm">
+                    {% csrf_token %}
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="nombre">Nombre del Producto:</label>
+                            <input type="text" id="nombre" name="nombre" class="form-control" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="categoria">Categoría:</label>
+                            <select id="categoria" name="categoria" class="form-control" required>
+                                <option value="">Seleccione una categoría</option>
+                                {% for categoria in categorias %}
+                                <option value="{{ categoria.id }}">{{ categoria.nombreCategoria }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                            
+                        <div class="mb-3">
+                            <label for="costoProducto">Costo:</label>
+                            <input type="number" id="costoProducto" name="costoProducto" class="form-control" required>
+                        </div>
+                            
+                        <div class="mb-3">
+                            <label for="precio">Precio de Venta:</label>
+                            <input type="number" id="precio" name="precio" class="form-control" required>
+                        </div>
+                            
+                        <div class="mb-3">
+                            <label for="stock">Stock:</label>
+                            <input type="number" id="stock" name="stock" class="form-control" required>
+                        </div>
+                            
+                        <div class="mb-3">
+                            <label for="umbral">Stock Mínimo:</label>
+                            <input type="number" id="umbral" name="umbral" class="form-control" required>
+                        </div>
+                            
+                        <div class="mb-3">
+                            <label for="imagen_url" class="form-label">URL de la imagen:</label>
+                            <input type="url" id="imagen_url" name="imagen_url" class="form-control" 
+                                   placeholder="https://ejemplo.com/imagen.jpg">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Guardar Producto</button>
+                    </div>
+                </form>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Nueva Categoría -->
+    <div class="modal fade" id="nuevaCategoriaModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Nueva Categoría</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form method="POST" action="{% url 'inventario:nueva_categoria' %}">
+                    {% csrf_token %}
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="nombreCategoria" class="form-label">Nombre de la Categoría:</label>
+                            <input type="text" name="nombreCategoria" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="descripcion" class="form-label">Descripción:</label>
+                            <textarea name="descripcion" class="form-control" rows="3"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-success">Guardar Categoría</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de productos -->
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Imagen</th>
+                <th>Nombre</th>
+                <th>Categoría</th>
+                <th>Costo</th>
+                <th>Precio</th>
+                <th>Stock</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for producto in productos %}
+            <tr>
+                <td>
+                    {% if producto.imagen_url %}
+                        <img src="{{ producto.imagen_url }}" alt="{{ producto.nombreProducto }}" 
+                             style="width: 50px; height: 50px; object-fit: cover;">
+                    {% else %}
+                        <span>Sin imagen</span>
+                    {% endif %}
+                </td>
+                <td>{{ producto.nombreProducto }}</td>
+                <td>{{ producto.nombreCategoria }}</td>
+                <td>${{ producto.costoProducto }}</td>
+                <td>${{ producto.precioVenta }}</td>
+                <td>{{ producto.stockActual }}</td>
+                <td>
+                    <button class="btn btn-sm btn-info" onclick="editarProducto('{{ producto.id }}')">Editar</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Modal para Editar Producto -->
+<div class="modal fade" id="editarProductoModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Editar Producto</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editarProductoForm">
+                <input type="hidden" id="editProductoId">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label>Nombre:</label>
+                        <input type="text" id="editNombre" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label>Costo:</label>
+                        <input type="number" id="editCosto" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label>Precio Venta:</label>
+                        <input type="number" id="editPrecio" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label>Stock:</label>
+                        <input type="number" id="editStock" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label>Stock Mínimo:</label>
+                        <input type="number" id="editUmbral" class="form-control" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock content %}
+
+{% block extra_js %}
+<script src="{% static 'js/inventario.js' %}"></script>
+{% endblock extra_js %}

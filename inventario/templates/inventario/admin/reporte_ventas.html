@@ -1,0 +1,30 @@
+{% extends 'inventario/base.html' %}
+
+{% block content %}
+<div class="container">
+    <h2>Reporte de Ventas</h2>
+    
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>ID Venta</th>
+                    <th>Fecha</th>
+                    <th>Método de Pago</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for venta in ventas %}
+                <tr>
+                    <td>{{ venta.id }}</td>
+                    <td>{{ venta.fechaVenta }}</td>
+                    <td>{{ venta.metodoPago }}</td>
+                    <td>${{ venta.montoPagado }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
