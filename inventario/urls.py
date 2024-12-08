@@ -22,4 +22,6 @@ urlpatterns = [
     path('producto/<int:producto_id>/', views.obtener_producto, name='obtener_producto'),
     path('producto/<int:producto_id>/actualizar/', views.actualizar_producto, name='actualizar_producto'),
     path('venta/<int:venta_id>/detalles/', views.detalles_venta, name='detalles_venta'),
+    path('productos-bajo-stock', views.productos_bajo_stock, name='productos_bajo_stock'),
+    path('test-notificaciones', views.test_notificaciones, name='test_notificaciones'),
 ]

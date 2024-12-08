@@ -4,7 +4,7 @@ from django.views.decorators.csrf import csrf_exempt
 from .models import Producto, Venta, Usuario, CierreCaja, DetalleVenta, Categoria
 import json
 from django.utils import timezone
-from django.db.models import Sum
+from django.db.models import Sum, F
 from datetime import datetime
 from .forms import UsuarioRegistroForm, LoginForm
 from .decorators import login_required, role_required
@@ -17,6 +17,7 @@ from io import BytesIO
 from django.db.models import Count
 from datetime import datetime, timedelta
 from django.contrib import messages
+from django.db import models
 
 # from reportlab.pdfgen import canvas
 # from reportlab.lib.pagesizes import letter
@@ -32,8 +33,16 @@ def inicio(request):
 @role_required(["admin"])
 def lista_productos(request):
     productos = Producto.objects.all()
+    productos_bajos = Producto.objects.filter(
+        stockActual__lte=F('stockUmbral')
+    ).values('id', 'nombreProducto', 'stockActual', 'stockUmbral')
+    
     categorias = Categoria.objects.all()
-    context = {"productos": productos, "categorias": categorias}
+    context = {
+        "productos": productos, 
+        "categorias": categorias,
+        "productos_bajos": productos_bajos
+    }
     return render(request, "inventario/productos.html", context)
 
 
@@ -527,3 +536,33 @@ def actualizar_producto(request, producto_id):
         except Exception as e:
             return JsonResponse({"success": False, "error": str(e)})
     return JsonResponse({"success": False, "error": "Método no permitido"})
+
+
+@login_required
+def productos_bajo_stock(request):
+    try:
+        # Agregar logs para diagnóstico
+        print("Consultando productos con bajo stock...")
+        
+        productos_bajos = Producto.objects.filter(
+            stockActual__lt=5
+        ).values('nombreProducto', 'stockActual')
+        
+        # Imprimir resultados para diagnóstico
+        productos_list = list(productos_bajos)
+        print(f"Productos encontrados: {len(productos_list)}")
+        print("Productos:", productos_list)
+        
+        return JsonResponse(productos_list, safe=False)
+    except Exception as e:
+        print(f"Error en productos_bajo_stock: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+def test_notificaciones(request):
+    productos_bajos = Producto.objects.filter(
+        stockActual__lte=F('stockUmbral')  # Productos con stock menor o igual al umbral
+    ).values('id', 'nombreProducto', 'stockActual', 'stockUmbral')
+    
+    return JsonResponse(list(productos_bajos), safe=False)

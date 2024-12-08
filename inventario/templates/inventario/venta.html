@@ -150,7 +150,8 @@
         const productoCard = document.querySelector(`[data-producto-id="${id}"]`);
         const nombre = productoCard.querySelector("h3").textContent;
         const precio = parseFloat(productoCard.querySelector(".price").textContent.replace("$", ""));
-        const stockActual = parseInt(productoCard.querySelector(".qty").textContent.replace("Stock: ", ""));
+        const stockElement = productoCard.querySelector(".qty");
+        const stockActual = parseInt(stockElement.textContent.replace("Stock: ", ""));
         const cantidad = parseInt(productoCard.querySelector('.input-number').value);
 
         // Validaciones de cantidad y stock
@@ -180,6 +181,15 @@
                 precioVenta: precio,
                 cantidad: cantidad
             });
+        }
+
+        // Actualizar el stock visualmente
+        const nuevoStock = stockActual - cantidad;
+        stockElement.textContent = `Stock: ${nuevoStock}`;
+        
+        // Agregar clase de advertencia si el stock es bajo
+        if (nuevoStock <= 5) { // Puedes ajustar este número según tu umbral
+            stockElement.classList.add('text-danger');
         }
 
         actualizarCarrito();
@@ -329,6 +339,11 @@
                 // Mostrar modal
                 const modal = new bootstrap.Modal(document.getElementById('resumenVentaModal'));
                 modal.show();
+                
+                // Resetear todos los contadores de cantidad a 1
+                document.querySelectorAll('.input-number').forEach(input => {
+                    input.value = '1';
+                });
                 
                 // Limpiar carrito
                 carrito = [];

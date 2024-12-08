@@ -92,6 +92,18 @@
       </div>
     </div>
   </div>
+
+  <!-- Agregar después del botón de agregar producto -->
+  <div id="alertasStock" class="mb-4">
+    {% for producto in productos_bajos %}
+    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+      <i class="fas fa-exclamation-triangle me-2"></i>
+      <strong>¡Stock bajo!</strong> {{ producto.nombreProducto }} tiene {{ producto.stockActual }} unidades 
+      (Umbral: {{ producto.stockUmbral }})
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endfor %}
+  </div>
 </div>
 
 <!-- Modal para agregar/editar producto -->
@@ -643,6 +655,41 @@
 
   // Inicializar validaciones en tiempo real
   document.addEventListener("DOMContentLoaded", validarEnTiempoReal);
+
+  document.addEventListener('DOMContentLoaded', function() {
+    // Verificar stock bajo al cargar la página
+    verificarStockBajo();
+
+    // Verificar stock bajo cada vez que se actualice un producto
+    function verificarStockBajo() {
+        fetch('/inventario/test-notificaciones')
+            .then(response => response.json())
+            .then(productos => {
+                const alertasContainer = document.getElementById('alertasStock');
+                alertasContainer.innerHTML = '';
+
+                productos.forEach(producto => {
+                    const alerta = document.createElement('div');
+                    alerta.className = 'alert alert-warning alert-dismissible fade show';
+                    alerta.innerHTML = `
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>¡Stock bajo!</strong> ${producto.nombreProducto} tiene ${producto.stockActual} unidades 
+                        (Umbral: ${producto.stockUmbral})
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    `;
+                    alertasContainer.appendChild(alerta);
+                });
+            });
+    }
+
+    // Actualizar verificación después de editar un producto
+    const editForm = document.getElementById('editarProductoForm');
+    if (editForm) {
+        editForm.addEventListener('submit', function() {
+            setTimeout(verificarStockBajo, 1000); // Verificar después de 1 segundo
+        });
+    }
+  });
 </script>
 
 {% endblock %}
