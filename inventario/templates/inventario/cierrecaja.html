@@ -18,10 +18,24 @@
       <p>Efectivo: ${{ efectivo }}</p>
       <p>Tarjeta: ${{ tarjeta }}</p>
     </div>
+    <div class="verificacion-efectivo mt-4">
+      <h3>Verificación de Efectivo</h3>
+      <div class="mb-3">
+        <label for="montoEfectivo" class="form-label">Ingrese el monto en efectivo en caja:</label>
+        <input 
+          type="number" 
+          class="form-control" 
+          id="montoEfectivo" 
+          step="0.01" 
+          required
+        >
+      </div>
+      <div id="alertaEfectivo" class="alert d-none">
+      </div>
+    </div>
     <div class="text-center mt-4">
-      <!-- <button id="btnGenerarInforme" class="btn btn-success me-2">Generar Informe PDF</button> -->
-      <button id="btnCerrarCaja" class="btn btn-warning">
-        Cerrar Caja y Salir
+      <button id="btnCerrarCaja" class="btn btn-warning" disabled>
+        Cerrar Caja
       </button>
     </div>
   </div>
@@ -52,32 +66,102 @@
     padding-top: 20px;
     border-top: 1px solid #ddd;
   }
+  .verificacion-efectivo {
+    background: white;
+    padding: 20px;
+    border-radius: 5px;
+    margin-top: 20px;
+  }
+  .alert {
+    margin-top: 10px;
+    margin-bottom: 0;
+  }
 </style>
 <script>
+  const efectivoEsperado = {{ efectivo }};
+  const inputEfectivo = document.getElementById("montoEfectivo");
+  const btnCerrarCaja = document.getElementById("btnCerrarCaja");
+  const alertaEfectivo = document.getElementById("alertaEfectivo");
+
+  inputEfectivo.addEventListener("input", function() {
+    const montoIngresado = parseFloat(this.value) || 0;
+    const diferencia = montoIngresado - efectivoEsperado;
+    
+    alertaEfectivo.classList.remove('d-none', 'alert-success', 'alert-danger', 'alert-warning');
+    
+    if (montoIngresado === 0 || isNaN(montoIngresado)) {
+      btnCerrarCaja.disabled = true;
+      alertaEfectivo.classList.add('d-none');
+    } else if (montoIngresado === efectivoEsperado) {
+      alertaEfectivo.classList.add('alert-success');
+      alertaEfectivo.textContent = "¡El monto coincide correctamente!";
+      btnCerrarCaja.disabled = false;
+    } else {
+      alertaEfectivo.classList.add('alert-danger');
+      if (diferencia > 0) {
+        alertaEfectivo.textContent = `Sobran $${Math.abs(diferencia).toFixed(2)} en la caja`;
+      } else {
+        alertaEfectivo.textContent = `Faltan $${Math.abs(diferencia).toFixed(2)} en la caja`;
+      }
+      btnCerrarCaja.disabled = true;
+    }
+  });
+
   document
     .getElementById("btnCerrarCaja")
-    .addEventListener("click", function () {
+    .addEventListener("click", async function () {
       if (
         confirm(
-          "¿Está seguro de realizar el cierre de caja? Esto cerrará su sesión."
+          "¿Está seguro de realizar el cierre de caja?"
         )
       ) {
-        fetch("/cierre-caja/", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-CSRFToken": getCookie("csrftoken"),
-          },
-        })
-          .then((response) => response.json())
-          .then((data) => {
-            if (data.success) {
-              alert("Cierre de caja realizado con éxito");
-              window.location.href = "{% url 'inventario:logout' %}";
-            } else {
-              alert("Error al realizar el cierre: " + data.error);
-            }
+        try {
+          // Primero realizar el cierre de caja
+          const responseCierre = await fetch("/cierre-caja/", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": getCookie("csrftoken"),
+            },
+            body: JSON.stringify({
+              montoEfectivo: parseFloat(inputEfectivo.value)
+            })
           });
+          
+          const dataCierre = await responseCierre.json();
+          
+          if (dataCierre.success) {
+            // Si el cierre fue exitoso, generar y descargar el PDF
+            const responsePDF = await fetch('/generar-informe-cierre/', {
+              method: 'GET',
+              headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+              },
+            });
+            
+            if (responsePDF.ok) {
+              const blob = await responsePDF.blob();
+              const url = window.URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = 'informe_cierre_caja.pdf';
+              document.body.appendChild(a);
+              a.click();
+              window.URL.revokeObjectURL(url);
+              document.body.removeChild(a);
+              
+              alert("Cierre de caja realizado con éxito");
+              window.location.reload();
+            } else {
+              throw new Error('Error al generar el PDF');
+            }
+          } else {
+            alert("Error al realizar el cierre: " + dataCierre.error);
+          }
+        } catch (error) {
+          console.error('Error:', error);
+          alert("Error al procesar el cierre de caja");
+        }
       }
     });
 

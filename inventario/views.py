@@ -18,6 +18,13 @@ from django.db.models import Count
 from datetime import datetime, timedelta
 from django.contrib import messages
 from django.db import models
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from io import BytesIO
+from django.utils import timezone
+from decimal import Decimal
 
 # from reportlab.pdfgen import canvas
 # from reportlab.lib.pagesizes import letter
@@ -62,7 +69,7 @@ def cierre_caja(request):
             # Obtener las ventas del día actual
             hoy = timezone.now().date()
 
-            # Calcular totales por método de pago
+            # Calcular totales por m��todo de pago
             ventas_efectivo = (
                 Venta.objects.filter(
                     fechaVenta__date=hoy, metodoPago="efectivo"
@@ -566,3 +573,93 @@ def test_notificaciones(request):
     ).values('id', 'nombreProducto', 'stockActual', 'stockUmbral')
     
     return JsonResponse(list(productos_bajos), safe=False)
+
+
+@login_required
+@role_required(["admin", "cajero"])
+def generar_informe_cierre(request):
+    # Obtener la fecha actual
+    hoy = timezone.now().date()
+    
+    # Obtener todas las ventas del día
+    ventas = Venta.objects.filter(fechaVenta__date=hoy).select_related('idUsuario')
+    
+    # Crear el PDF
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter)
+    elements = []
+    
+    # Estilos
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        alignment=1,  # Centrado
+        spaceAfter=30
+    )
+    
+    # Título
+    elements.append(Paragraph(f"Informe de Cierre de Caja - {hoy.strftime('%d/%m/%Y')}", title_style))
+    
+    # Resumen de ventas
+    ventas_efectivo = sum(v.montoPagado for v in ventas if v.metodoPago == 'efectivo')
+    ventas_tarjeta = sum(v.montoPagado for v in ventas if v.metodoPago == 'tarjeta')
+    total_ventas = ventas_efectivo + ventas_tarjeta
+    
+    resumen_data = [
+        ['Resumen de Ventas'],
+        ['Total Efectivo:', f'${ventas_efectivo:,.2f}'],
+        ['Total Tarjeta:', f'${ventas_tarjeta:,.2f}'],
+        ['Total General:', f'${total_ventas:,.2f}'],
+        ['Número de Transacciones:', str(ventas.count())]
+    ]
+    
+    t_resumen = Table(resumen_data)
+    t_resumen.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 14),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('GRID', (0, 1), (-1, -1), 1, colors.black),
+        ('BOX', (0, 0), (-1, -1), 2, colors.black),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey)
+    ]))
+    
+    elements.append(t_resumen)
+    elements.append(Spacer(1, 20))
+    
+    # Detalle de ventas
+    if ventas:
+        detalle_data = [['ID', 'Hora', 'Método', 'Cajero', 'Monto']]
+        for venta in ventas:
+            detalle_data.append([
+                str(venta.id),
+                venta.fechaVenta.strftime('%H:%M'),
+                venta.metodoPago.title(),
+                f"{venta.idUsuario.nombre} {venta.idUsuario.apellidoPaterno}",
+                f"${venta.montoPagado:,.2f}"
+            ])
+        
+        t_detalle = Table(detalle_data)
+        t_detalle.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 12),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('BOX', (0, 0), (-1, -1), 2, colors.black),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey)
+        ]))
+        
+        elements.append(Paragraph("Detalle de Ventas", title_style))
+        elements.append(t_detalle)
+    
+    # Generar PDF
+    doc.build(elements)
+    
+    # Preparar respuesta
+    buffer.seek(0)
+    response = HttpResponse(buffer, content_type='application/pdf')
+    response['Content-Disposition'] = 'attachment; filename=informe_cierre_caja.pdf'
+    
+    return response
