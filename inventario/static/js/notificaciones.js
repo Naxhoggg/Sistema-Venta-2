@@ -25,11 +25,14 @@ function actualizarNotificaciones() {
             const contador = document.getElementById("notificacionesContador");
             const lista = document.getElementById("notificacionesLista");
             
-            if (!contador || !lista) return;
+            if (!contador || !lista) {
+                console.error("No se encontraron elementos de notificación");
+                return;
+            }
             
             // Actualizar contador y badge
             contador.textContent = productos.length;
-            contador.style.display = productos.length > 0 ? "inline" : "none";
+            contador.style.display = productos.length > 0 ? "inline-block" : "none";
             
             // Limpiar y actualizar lista
             lista.innerHTML = "";
@@ -55,12 +58,15 @@ function actualizarNotificaciones() {
                 `;
                 lista.appendChild(item);
             });
+        })
+        .catch(error => {
+            console.error("Error al actualizar notificaciones:", error);
         });
 }
 
-// Inicializar notificaciones cuando se carga la página
-document.addEventListener('DOMContentLoaded', () => {
+// Ejecutar cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', function() {
     actualizarNotificaciones();
-    // Verificar cada 30 segundos
+    // Actualizar cada 30 segundos
     setInterval(actualizarNotificaciones, 30000);
 });
