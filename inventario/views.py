@@ -362,118 +362,59 @@ def guardar_categoria(request):
 @login_required
 @role_required(["admin"])
 def generar_reporte(request):
-    buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter)
-    elements = []
-    styles = getSampleStyleSheet()
-
-    # Título y fecha
-    elements.append(
-        Paragraph(
-            f"Reporte de Ventas - {datetime.now().strftime('%d/%m/%Y')}",
-            styles["Title"],
+    try:
+        fecha = request.GET.get('fecha')
+        is_preview = request.GET.get('preview') == 'true'
+        
+        # Convertir la fecha al formato correcto (DD/MM/YYYY HH:MM)
+        fecha_obj = datetime.strptime(fecha, '%Y-%m-%d')
+        fecha_formateada = fecha_obj.strftime('%d/%m/%Y %H:%M')
+        
+        # Filtrar ventas por fecha
+        ventas_query = Venta.objects.filter(
+            fechaVenta__date=fecha_obj.date()
         )
-    )
-    elements.append(Spacer(1, 20))
 
-    # Resumen financiero
-    total_ventas = Venta.objects.aggregate(Sum("montoPagado"))["montoPagado__sum"] or 0
-    total_ganancia = Venta.objects.aggregate(Sum("ganancia"))["ganancia__sum"] or 0
-    ventas_mes = (
-        Venta.objects.filter(fechaVenta__month=datetime.now().month).aggregate(
-            Sum("montoPagado")
-        )["montoPagado__sum"]
-        or 0
-    )
+        # Resumen general
+        total_ventas = ventas_query.count()
+        total_ingresos = ventas_query.aggregate(Sum("montoPagado"))["montoPagado__sum"] or 0
+        
+        # Ventas por método de pago
+        ventas_efectivo = ventas_query.filter(metodoPago="efectivo").aggregate(
+            Sum("montoPagado"))["montoPagado__sum"] or 0
+        ventas_tarjeta = ventas_query.filter(metodoPago="tarjeta").aggregate(
+            Sum("montoPagado"))["montoPagado__sum"] or 0
 
-    # Ventas por método de pago
-    ventas_efectivo = (
-        Venta.objects.filter(metodoPago="efectivo").aggregate(Sum("montoPagado"))[
-            "montoPagado__sum"
-        ]
-        or 0
-    )
-    ventas_tarjeta = (
-        Venta.objects.filter(metodoPago="tarjeta").aggregate(Sum("montoPagado"))[
-            "montoPagado__sum"
-        ]
-        or 0
-    )
+        # Productos vendidos
+        productos_vendidos = DetalleVenta.objects.filter(
+            idVenta__in=ventas_query
+        ).values(
+            'idProducto__nombreProducto'
+        ).annotate(
+            cantidad=Sum('cantidadVendida'),
+            total=Sum(F('precioUnitario') * F('cantidadVendida'))
+        ).order_by('-cantidad')
 
-    # Tabla de resumen financiero
-    data = [
-        ["Resumen Financiero", ""],
-        ["Ventas Totales", f"${total_ventas:,.2f}"],
-        ["Ganancia Total", f"${total_ganancia:,.2f}"],
-        ["Ventas del Mes", f"${ventas_mes:,.2f}"],
-        ["Ventas en Efectivo", f"${ventas_efectivo:,.2f}"],
-        ["Ventas con Tarjeta", f"${ventas_tarjeta:,.2f}"],
-    ]
+        productos_formateados = [{
+            'nombre': p['idProducto__nombreProducto'],
+            'cantidad': p['cantidad'],
+            'total': f"{p['total']:,.2f}"
+        } for p in productos_vendidos]
 
-    t = Table(data, colWidths=[300, 200])
-    t.setStyle(
-        TableStyle(
-            [
-                ("BACKGROUND", (0, 0), (-1, 0), colors.grey),
-                ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
-                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                ("FONTSIZE", (0, 0), (-1, 0), 14),
-                ("BOTTOMPADDING", (0, 0), (-1, 0), 12),
-                ("GRID", (0, 0), (-1, -1), 1, colors.black),
-            ]
-        )
-    )
-    elements.append(t)
-    elements.append(Spacer(1, 20))
-
-    # Productos más vendidos
-    elements.append(Paragraph("Top 5 Productos Más Vendidos", styles["Heading2"]))
-    elements.append(Spacer(1, 12))
-
-    productos_vendidos = (
-        DetalleVenta.objects.values("producto__nombreProducto")
-        .annotate(cantidad=Count("id"), total_ventas=Sum("producto__precioVenta"))
-        .order_by("-cantidad")[:5]
-    )
-
-    if productos_vendidos:
-        data = [["Producto", "Cantidad Vendida", "Total Ventas"]]
-        for producto in productos_vendidos:
-            data.append(
-                [
-                    producto["producto__nombreProducto"],
-                    str(producto["cantidad"]),
-                    f"${producto['total_ventas']:,.2f}",
-                ]
-            )
-
-        t = Table(data, colWidths=[200, 150, 150])
-        t.setStyle(
-            TableStyle(
-                [
-                    ("BACKGROUND", (0, 0), (-1, 0), colors.grey),
-                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
-                    ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                    ("GRID", (0, 0), (-1, -1), 1, colors.black),
-                ]
-            )
-        )
-        elements.append(t)
-
-    # Generar PDF
-    doc.build(elements)
-    pdf = buffer.getvalue()
-    buffer.close()
-
-    response = HttpResponse(content_type="application/pdf")
-    response["Content-Disposition"] = (
-        f'attachment; filename="reporte_ventas_{datetime.now().strftime("%Y%m%d")}.pdf"'
-    )
-    response.write(pdf)
-
-    return response
+        if is_preview:
+            return JsonResponse({
+                'fecha_reporte': fecha_formateada,
+                'total_ventas': total_ventas,
+                'total_ingresos': f"{total_ingresos:,.2f}",
+                'ventas_efectivo': f"{ventas_efectivo:,.2f}",
+                'ventas_tarjeta': f"{ventas_tarjeta:,.2f}",
+                'productos_vendidos': productos_formateados
+            })
+            
+    except Exception as e:
+        return JsonResponse({
+            'error': str(e)
+        }, status=400)
 
 
 @login_required
