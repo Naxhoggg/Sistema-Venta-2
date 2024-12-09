@@ -135,6 +135,37 @@
             background: #dc3545 !important;
             border-radius: 4px !important;
         }
+
+        .notification-icon {
+            color: #ff4444;
+            font-size: 1.2rem;
+        }
+
+        #notificacionesContador {
+            background-color: #ff4444 !important;
+            color: white;
+            font-weight: bold;
+            padding: 0.25rem 0.6rem;
+            border-radius: 50%;
+            border: 2px solid #fff;
+            box-shadow: 0 0 10px rgba(255, 68, 68, 0.7);
+            animation: pulseNotification 2s infinite;
+        }
+
+        @keyframes pulseNotification {
+            0% {
+                transform: scale(1);
+                background-color: #ff4444;
+            }
+            50% {
+                transform: scale(1.2);
+                background-color: #ff0000;
+            }
+            100% {
+                transform: scale(1);
+                background-color: #ff4444;
+            }
+        }
     </style>
 
     <!-- Fonts -->
@@ -199,11 +230,9 @@
                                             <a class="nav-link" href="{% url 'inventario:registro_venta' %}">Nueva Venta</a>
                                         </li>
                                         <li class="nav-item dropdown me-3">
-                                            <a class="nav-link dropdown-toggle position-relative" href="#" id="notificacionesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                                <i class="fas fa-bell text-danger fa-beat"></i>
-                                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="notificacionesContador">
-                                                    {{ productos_bajos|length }}
-                                                </span>
+                                            <a class="nav-link dropdown-toggle position-relative" href="#" id="notificacionesDropdown" role="button" data-bs-toggle="dropdown">
+                                                <i class="fas fa-bell notification-icon"></i>
+                                                <span id="notificacionesContador" class="badge bg-danger position-absolute top-0 start-100 translate-middle">0</span>
                                             </a>
                                             <div class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="notificacionesDropdown" style="min-width: 300px; background-color: #fff;">
                                                 <h6 class="dropdown-header bg-danger text-white py-2">Productos con Stock Bajo</h6>
@@ -258,7 +287,7 @@
 
     <!-- Contenido principal -->
     <main class="py-4">
-        <div class="container">
+        <div class="contsainer">
             {% block content %}
             {% endblock %}
         </div>
@@ -270,49 +299,6 @@
     <script src="https://cdn.jsdelivr.net/npm/swiper@9/swiper-bundle.min.js"></script>
     <script src="{% static 'js/main.js' %}"></script>
 
-    <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        function verificarStockBajo() {
-            fetch('/inventario/test-notificaciones')
-                .then(response => response.json())
-                .then(productos => {
-                    const contador = document.getElementById('notificacionesContador');
-                    const lista = document.getElementById('notificacionesLista');
-                    
-                    // Actualizar contador
-                    contador.textContent = productos.length;
-                    contador.style.display = productos.length > 0 ? 'inline' : 'none';
-                    
-                    // Actualizar lista
-                    lista.innerHTML = '';
-                    
-                    if (productos.length === 0) {
-                        lista.innerHTML = '<div class="dropdown-item text-muted">No hay productos con stock bajo</div>';
-                        return;
-                    }
-                    
-                    productos.forEach(producto => {
-                        const item = document.createElement('div');
-                        item.className = 'dropdown-item border-bottom py-2';
-                        item.innerHTML = `
-                            <div class="d-flex align-items-center text-danger">
-                                <i class="fas fa-exclamation-triangle me-2"></i>
-                                <div>
-                                    <strong>${producto.nombreProducto}</strong>
-                                    <br>
-                                    <small>Stock actual: ${producto.stockActual} (Umbral: ${producto.stockUmbral})</small>
-                                </div>
-                            </div>
-                        `;
-                        lista.appendChild(item);
-                    });
-                });
-        }
-
-        // Verificar cada 30 segundos
-        verificarStockBajo();
-        setInterval(verificarStockBajo, 30000);
-    });
-    </script>
+    <script src="{% static 'js/notificaciones.js' %}"></script>
 </body>
 </html>
