@@ -22,7 +22,7 @@
                   {% endif %}
                 </figure>
                 <h3>{{ producto.nombreProducto }}</h3>
-                <span class="qty">Stock: {{ producto.stockActual }}</span>
+                <span class="qty {% if producto.stockActual <= producto.stockUmbral %}text-danger fw-bold{% endif %}">Stock: {{ producto.stockActual }}</span>
                 <span class="price">${{ producto.precioVenta }}</span>
                 <div class="d-flex align-items-center justify-content-between mt-3">
                     <div class="input-group product-qty me-2" style="width: 100px;">
@@ -138,6 +138,7 @@
         color: #222;
         padding: 0;
     }
+    
 </style>
 
 <!-- Scripts -->
@@ -222,7 +223,7 @@
                     </div>
                 </div>
                 <button onclick="eliminarDelCarrito(${index})" 
-                        class="btn btn-link text-danger p-0 ms-3" 
+                        class="btn btn-link text-danger p-0 ms-3 delete-btn" 
                         style="font-size: 1.2rem; text-decoration: none;">
                     &times;
                 </button>

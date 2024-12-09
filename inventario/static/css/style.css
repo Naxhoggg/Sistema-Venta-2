@@ -744,3 +744,13 @@ h6 {
     height: 740px;
   }
 }
+
+.delete-btn {
+    color: #ff0000 !important;
+    font-weight: bold;
+    transition: color 0.3s ease;
+}
+
+.delete-btn:hover {
+    color: #cc0000 !important;
+}
