@@ -529,7 +529,7 @@
       return false;
     }
 
-    // 5. Validar diferencia m��nima entre stock actual y umbral
+    // 5. Validar diferencia mínima entre stock actual y umbral
     const diferenciaMinimaStock = Math.ceil(stockActual * 0.1); // 10% del stock actual
     if (stockActual - stockUmbral < diferenciaMinimaStock) {
       alert("El stock mínimo debe ser al menos 10% menor que el stock actual");
@@ -689,6 +689,37 @@
             setTimeout(verificarStockBajo, 1000); // Verificar después de 1 segundo
         });
     }
+  });
+
+  // Agregar esta función al inicio del script
+  function resetearFormulario() {
+    // Resetear título del modal
+    document.querySelector("#agregarProductoModal .modal-title").textContent = "Agregar Nuevo Producto";
+    
+    // Resetear el formulario
+    const form = document.getElementById("productoForm");
+    form.reset();
+    
+    // Eliminar el campo oculto de producto_id si existe
+    const idInput = form.querySelector('input[name="producto_id"]');
+    if (idInput) {
+        idInput.remove();
+    }
+    
+    // Resetear las clases de validación
+    const inputs = form.querySelectorAll('.is-invalid');
+    inputs.forEach(input => input.classList.remove('is-invalid'));
+    
+    // Habilitar el botón de guardar
+    const guardarBtn = document.querySelector('button[onclick="guardarProducto()"]');
+    guardarBtn.disabled = false;
+  }
+
+  // Agregar este evento cuando el documento esté listo
+  document.addEventListener('DOMContentLoaded', function() {
+    // Agregar evento para cuando el modal se cierre
+    const modal = document.getElementById('agregarProductoModal');
+    modal.addEventListener('hidden.bs.modal', resetearFormulario);
   });
 </script>
 
