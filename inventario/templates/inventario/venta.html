@@ -21,7 +21,7 @@
                   <img src="{{ producto.imagen.url }}" alt="{{ producto.nombreProducto }}" class="img-fluid">
                   {% endif %}
                 </figure>
-                <h3>{{ producto.nombreProducto }}</h3>
+                <h3 class="{% if producto.stockActual <= producto.stockUmbral %}text-danger fw-bold{% endif %}">{{ producto.nombreProducto }}</h3>
                 <span class="qty {% if producto.stockActual <= producto.stockUmbral %}text-danger fw-bold{% endif %}">Stock: {{ producto.stockActual }}</span>
                 <span class="price">${{ producto.precioVenta }}</span>
                 <div class="d-flex align-items-center justify-content-between mt-3">
@@ -139,6 +139,26 @@
         padding: 0;
     }
     
+    .product-item .qty {
+        font-weight: 400;
+        font-size: 13px;
+        line-height: 18px;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        color: #9d9d9d;
+    }
+
+    .product-item .qty.text-danger {
+        color: #dc3545 !important;
+        font-weight: bold;
+        animation: parpadeo 1s infinite;
+    }
+
+    @keyframes parpadeo {
+        0% { opacity: 1; }
+        50% { opacity: 0.5; }
+        100% { opacity: 1; }
+    }
 </style>
 
 <!-- Scripts -->
@@ -222,11 +242,22 @@
                         $${producto.precioVenta} x ${producto.cantidad} = $${subtotal.toFixed(2)}
                     </div>
                 </div>
-                <button onclick="eliminarDelCarrito(${index})" 
-                        class="btn btn-link text-danger p-0 ms-3 delete-btn" 
-                        style="font-size: 1.2rem; text-decoration: none;">
-                    &times;
-                </button>
+                <div class="d-flex align-items-center">
+                    <button onclick="modificarCantidad(${index}, -1)" 
+                            class="btn btn-sm btn-outline-secondary me-1">
+                        <svg width="12" height="12"><use xlink:href="#minus"></use></svg>
+                    </button>
+                    <span class="mx-2">${producto.cantidad}</span>
+                    <button onclick="modificarCantidad(${index}, 1)" 
+                            class="btn btn-sm btn-outline-secondary me-2">
+                        <svg width="12" height="12"><use xlink:href="#plus"></use></svg>
+                    </button>
+                    <button onclick="eliminarDelCarrito(${index})" 
+                            class="btn btn-link text-danger p-0 delete-btn" 
+                            style="font-size: 1.2rem; text-decoration: none;">
+                        ×
+                    </button>
+                </div>
             `;
             itemsCarrito.appendChild(item);
         });
@@ -239,10 +270,46 @@
     function eliminarDelCarrito(index) {
         const producto = carrito[index];
         if (confirm(`¿Deseas eliminar ${producto.nombreProducto} del carrito?`)) {
+            // Restaurar el stock visible
+            const productoCard = document.querySelector(`[data-producto-id="${producto.id}"]`);
+            const stockElement = productoCard.querySelector(".qty");
+            const stockActual = parseInt(stockElement.textContent.replace("Stock: ", ""));
+            const nuevoStock = stockActual + producto.cantidad;
+            stockElement.textContent = `Stock: ${nuevoStock}`;
+            
             carrito.splice(index, 1);
             actualizarCarrito();
             mostrarMensaje('Producto eliminado del carrito');
         }
+    }
+
+    // Función para modificar la cantidad de un producto en el carrito
+    function modificarCantidad(index, cambio) {
+        const producto = carrito[index];
+        const nuevaCantidad = producto.cantidad + cambio;
+        
+        // Obtener el stock actual del producto
+        const productoCard = document.querySelector(`[data-producto-id="${producto.id}"]`);
+        const stockElement = productoCard.querySelector(".qty");
+        const stockActual = parseInt(stockElement.textContent.replace("Stock: ", ""));
+        
+        // Validar que la nueva cantidad sea válida
+        if (nuevaCantidad <= 0) {
+            if (confirm(`¿Deseas eliminar ${producto.nombreProducto} del carrito?`)) {
+                eliminarDelCarrito(index);
+            }
+            return;
+        }
+        
+        // Validar stock disponible
+        if (cambio > 0 && nuevaCantidad > stockActual) {
+            mostrarMensaje(`No hay suficiente stock de ${producto.nombreProducto}`, 'error');
+            return;
+        }
+        
+        // Actualizar cantidad
+        producto.cantidad = nuevaCantidad;
+        actualizarCarrito();
     }
 
     // Función para mostrar mensajes mejorada
