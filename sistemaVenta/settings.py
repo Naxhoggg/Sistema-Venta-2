@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-8h5daptk28as&pg%-up83u*bb4@v+ysx59kgx9n=q_kj964znk
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
-ALLOWED_HOSTS = ['tuusuario.pythonanywhere.com']
+ALLOWED_HOSTS = ['Naxhoggg.pythonanywhere.com']
 
 
 # Application definition
@@ -136,5 +136,5 @@ LOGOUT_REDIRECT_URL = 'login'
 # Agregar después de INSTALLED_APPS
 CRISPY_TEMPLATE_PACK = 'bootstrap5'
 
-STATIC_ROOT = '/home/tuusuario/sistemaVenta/static'
-MEDIA_ROOT = '/home/tuusuario/sistemaVenta/media'
+STATIC_ROOT = '/home/Naxhoggg/Sistema-Venta-2/static'
+MEDIA_ROOT = '/home/Naxhoggg/Sistema-Venta-2/media'
