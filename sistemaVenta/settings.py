@@ -40,11 +40,13 @@ INSTALLED_APPS = [
     'inventario',
     'crispy_forms',
     'crispy_bootstrap5',
+    'corsheaders',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -138,3 +140,11 @@ CRISPY_TEMPLATE_PACK = 'bootstrap5'
 
 STATIC_ROOT = '/home/Naxhoggg/Sistema-Venta-2/static'
 MEDIA_ROOT = '/home/Naxhoggg/Sistema-Venta-2/media'
+
+CORS_ALLOWED_ORIGINS = [
+    'https://Naxhoggg.pythonanywhere.com',
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    'https://Naxhoggg.pythonanywhere.com',
+]
