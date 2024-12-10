@@ -624,6 +624,22 @@ h6 {
   text-transform: uppercase;
   color: #9d9d9d;
 }
+.product-item .qty.text-danger {
+  color: #dc3545 !important;
+  font-weight: bold;
+  font-size: 14px;
+  background-color: rgba(220, 53, 69, 0.1);
+  padding: 4px 8px;
+  border-radius: 4px;
+  animation: parpadeo 2s infinite;
+}
+
+@keyframes parpadeo {
+  0% { opacity: 1; }
+  50% { opacity: 0.7; }
+  100% { opacity: 1; }
+}
+
 .product-item .rating {
   font-weight: 600;
   font-size: 13px;
@@ -753,4 +769,12 @@ h6 {
 
 .delete-btn:hover {
     color: #cc0000 !important;
+}
+
+.product-item h3.text-danger {
+    color: #000000 !important;
+    font-weight: bold;
+    padding: 4px 8px;
+    border-radius: 4px;
+    display: inline-block;
 }
