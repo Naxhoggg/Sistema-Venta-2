@@ -53,11 +53,27 @@
             <div class="total mt-4">
                 <div class="metodo-pago mb-3">
                     <h4 class="fs-6 mb-2">Método de Pago:</h4>
-                    <select class="form-select" id="metodoPago">
+                    <select class="form-select" id="metodoPago" onchange="togglePagoEfectivo()">
                         <option value="efectivo">Efectivo</option>
                         <option value="tarjeta">Tarjeta Débito/Crédito</option>
                     </select>
                 </div>
+                
+                <!-- Nuevo div para pago en efectivo -->
+                <div id="pagoEfectivoContainer" class="mb-3">
+                    <div class="mb-2">
+                        <label class="form-label">Monto Recibido:</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" class="form-control" id="montoRecibido" min="0" step="0.01" onchange="calcularVuelto()">
+                        </div>
+                    </div>
+                    <div class="alert alert-info mb-0" id="vueltoContainer" style="display: none;">
+                        <strong>Vuelto a entregar:</strong> 
+                        <span id="montoVuelto" class="fs-5">$0.00</span>
+                    </div>
+                </div>
+
                 <div class="d-flex justify-content-between align-items-center border-top pt-4">
                     <h4 class="mb-0 fs-6">Total:</h4>
                     <h4 class="mb-0 fs-6">$<span id="total">0.00</span></h4>
@@ -378,12 +394,17 @@
             },
             body: JSON.stringify({
                 productos: carrito,
-                metodoPago: metodoPago
+                metodoPago: metodoPago,
+                montoRecibido: metodoPago === 'efectivo' ? parseFloat(document.getElementById('montoRecibido').value) : null
             })
         })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
+                // Limpiar el monto recibido y ocultar el vuelto
+                document.getElementById('montoRecibido').value = '';
+                document.getElementById('vueltoContainer').style.display = 'none';
+                
                 // Llenar el modal con los detalles
                 const resumenProductos = document.getElementById('resumenProductos');
                 const resumenTotal = document.getElementById('resumenTotal');
@@ -450,7 +471,46 @@
     // Inicializar cuando el documento esté listo
     document.addEventListener('DOMContentLoaded', function() {
         initProductQty();
+        togglePagoEfectivo();
     });
+
+    // Función para mostrar/ocultar el campo de pago en efectivo
+    function togglePagoEfectivo() {
+        const metodoPago = document.getElementById('metodoPago').value;
+        const pagoEfectivoContainer = document.getElementById('pagoEfectivoContainer');
+        const vueltoContainer = document.getElementById('vueltoContainer');
+        const montoRecibido = document.getElementById('montoRecibido');
+        
+        if (metodoPago === 'efectivo') {
+            pagoEfectivoContainer.style.display = 'block';
+        } else {
+            pagoEfectivoContainer.style.display = 'none';
+            vueltoContainer.style.display = 'none';
+            montoRecibido.value = '';
+        }
+    }
+
+    // Función para calcular el vuelto
+    function calcularVuelto() {
+        const total = parseFloat(document.getElementById('total').textContent);
+        const montoRecibido = parseFloat(document.getElementById('montoRecibido').value) || 0;
+        const vueltoContainer = document.getElementById('vueltoContainer');
+        const montoVuelto = document.getElementById('montoVuelto');
+        const btnFinalizar = document.querySelector('.btn-finalizar');
+        
+        if (montoRecibido < total) {
+            vueltoContainer.className = 'alert alert-danger mb-0';
+            vueltoContainer.style.display = 'block';
+            montoVuelto.textContent = 'Monto insuficiente';
+            btnFinalizar.disabled = true;
+        } else {
+            const vuelto = montoRecibido - total;
+            vueltoContainer.className = 'alert alert-info mb-0';
+            vueltoContainer.style.display = 'block';
+            montoVuelto.textContent = `$${vuelto.toFixed(2)}`;
+            btnFinalizar.disabled = false;
+        }
+    }
 </script>
 
 <!-- Primero agregamos el HTML del modal después del section principal -->
