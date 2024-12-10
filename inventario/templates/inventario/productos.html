@@ -57,13 +57,9 @@
               <td>{{ producto.idCategoria }}</td>
               <td>${{ producto.costoProducto }}</td>
               <td>${{ producto.precioVenta }}</td>
-              <td>
-                <span
-                  class="{% if producto.stockActual <= producto.stockUmbral %}text-danger{% endif %}"
-                >
-                  {{ producto.stockActual }}
-                </span>
-              </td>
+              <td {% if producto.stockActual <= producto.stockUmbral %}style="color: #ff0000;"{% endif %}>
+                {{ producto.stockActual }}
+            </td>
               <td>{{ producto.stockUmbral }}</td>
               <td>
                 <button
